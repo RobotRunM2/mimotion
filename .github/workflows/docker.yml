@@ -10,6 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: 检查 PAT
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::仓库未配置 secrets.PAT，无法同步上游。请按 README「一、Fork 此仓库，然后创建token」创建 token（Repository permissions 需 Contents 和 Workflows 读写），再在 Settings → Secrets and variables → Actions 添加名为 PAT 的 secret。"
+            exit 1
+          fi
       - name: 同步上游
         env:
           GH_TOKEN: ${{ secrets.PAT }} # 需要 Contents 和 Workflows 读写权限，见 README
