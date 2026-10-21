@@ -1,0 +1,11 @@
+services:
+  mimotion:
+    image: ghcr.io/robotrunm2/mimotion:latest
+    container_name: mimotion
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # 北京时间，分 时 日 月 周；按需修改
+      CRON: "23 18,20,22 * * *"
+    volumes:
+      - ./data:/data

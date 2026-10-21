@@ -1,0 +1,48 @@
+name: 同步上游并构建镜像
+
+on:
+  schedule:
+    - cron: '0 20 * * *' # UTC 20:00 = 北京时间 04:00
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 同步上游
+        env:
+          GH_TOKEN: ${{ secrets.PAT }} # 需要 Contents 和 Workflows 读写权限，见 README
+        run: gh api -X POST "repos/${{ github.repository }}/merge-upstream" -f branch=master
+
+  build:
+    needs: sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: master # schedule 事件的默认 SHA 是同步前的提交
+      - name: 镜像名和日期
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "DATE=$(TZ=Asia/Shanghai date +%Y%m%d)" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.DATE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
